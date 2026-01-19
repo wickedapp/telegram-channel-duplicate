@@ -80,7 +80,7 @@ class MessageFilter:
             - If should_copy is True, reason is empty
             - If should_copy is False, reason explains why
         """
-        text = message.text or message.caption or ""
+        text = message.text or getattr(message, 'caption', None) or ""
 
         # Check if forwarded
         if self.config.ignore_forwarded and self.is_forwarded(message):

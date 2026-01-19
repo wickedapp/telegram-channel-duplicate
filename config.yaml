@@ -71,6 +71,12 @@ message_filters:
   # 最大消息长度 (0 = 无限制)
   max_length: 0
 
+  # File extensions to skip (won't copy these files)
+  # 跳过的文件扩展名 (不复制这些文件)
+  skip_file_extensions:
+    - ".rar"
+    - ".zip"
+
 # Logging level: DEBUG, INFO, WARNING, ERROR
 # 日志级别
 log_level: INFO

@@ -117,6 +117,12 @@ class Config:
         filters = self._config.get("message_filters", {})
         return filters.get("max_length", 0)
 
+    @property
+    def skip_file_extensions(self) -> list[str]:
+        """File extensions to skip (e.g., .rar, .zip)."""
+        filters = self._config.get("message_filters", {})
+        return filters.get("skip_file_extensions", [])
+
     def get_template_vars(self) -> dict[str, str]:
         """Get template variables for text replacement."""
         return {

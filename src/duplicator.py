@@ -106,7 +106,7 @@ class ChannelDuplicator:
             return
 
         # Transform text
-        original_text = message.text or message.caption or ""
+        original_text = message.text or getattr(message, 'caption', None) or ""
         transformed_text = self.transformer.transform(original_text)
 
         logger.info(
@@ -156,6 +156,32 @@ class ChannelDuplicator:
             text,
         )
 
+    def _get_document_filename(self, message: Message) -> Optional[str]:
+        """Extract filename from a document message."""
+        if not isinstance(message.media, MessageMediaDocument):
+            return None
+
+        document = message.media.document
+        if not document or not document.attributes:
+            return None
+
+        for attr in document.attributes:
+            if hasattr(attr, 'file_name'):
+                return attr.file_name
+        return None
+
+    def _should_skip_file(self, filename: Optional[str]) -> bool:
+        """Check if file should be skipped based on extension."""
+        if not filename:
+            return False
+
+        skip_extensions = self.config.skip_file_extensions
+        if not skip_extensions:
+            return False
+
+        filename_lower = filename.lower()
+        return any(filename_lower.endswith(ext.lower()) for ext in skip_extensions)
+
     async def _send_media_message(
         self,
         message: Message,
@@ -168,6 +194,12 @@ class ChannelDuplicator:
         if isinstance(media, MessageMediaWebPage):
             if caption:
                 await self._send_text_message(caption)
+            return
+
+        # Skip .rar and .zip files
+        filename = self._get_document_filename(message)
+        if self._should_skip_file(filename):
+            logger.info(f"Skipping file with excluded extension: {filename}")
             return
 
         # Download and re-upload media
