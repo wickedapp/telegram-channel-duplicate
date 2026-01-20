@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from typing import Optional, Union
+from collections import defaultdict
 
 from telethon import TelegramClient, events
 from telethon.tl.types import (
@@ -16,6 +17,9 @@ from .filters import MessageFilter
 from .transformer import TextTransformer
 
 logger = logging.getLogger(__name__)
+
+# Time to wait for collecting media group messages (seconds)
+MEDIA_GROUP_WAIT_TIME = 1.0
 
 
 class ChannelDuplicator:
@@ -35,6 +39,10 @@ class ChannelDuplicator:
 
         self._target_entity = None
         self._source_entities = {}
+
+        # For handling media groups (albums)
+        self._media_groups: dict[int, list[Message]] = defaultdict(list)
+        self._media_group_tasks: dict[int, asyncio.Task] = {}
 
     async def start(self) -> None:
         """Start the duplicator client and register handlers."""
@@ -105,6 +113,23 @@ class ChannelDuplicator:
             logger.debug(f"Skipping message from {source_name}: {reason}")
             return
 
+        # Check if this is part of a media group (album)
+        grouped_id = getattr(message, 'grouped_id', None)
+
+        if grouped_id:
+            # Add to media group collection
+            self._media_groups[grouped_id].append(message)
+
+            # Cancel existing task for this group if any
+            if grouped_id in self._media_group_tasks:
+                self._media_group_tasks[grouped_id].cancel()
+
+            # Schedule processing after a short delay to collect all messages
+            self._media_group_tasks[grouped_id] = asyncio.create_task(
+                self._process_media_group_delayed(grouped_id, source_name)
+            )
+            return
+
         # Transform text
         original_text = message.text or getattr(message, 'caption', None) or ""
         transformed_text = self.transformer.transform(original_text)
@@ -116,6 +141,34 @@ class ChannelDuplicator:
 
         # Send to target
         await self._send_to_target(message, transformed_text)
+
+    async def _process_media_group_delayed(self, grouped_id: int, source_name: str) -> None:
+        """Wait for all messages in a media group, then process them together."""
+        await asyncio.sleep(MEDIA_GROUP_WAIT_TIME)
+
+        messages = self._media_groups.pop(grouped_id, [])
+        self._media_group_tasks.pop(grouped_id, None)
+
+        if not messages:
+            return
+
+        # Sort by message ID to maintain order
+        messages.sort(key=lambda m: m.id)
+
+        # Get caption from the first message that has one
+        caption = None
+        for msg in messages:
+            text = msg.text or getattr(msg, 'caption', None)
+            if text:
+                caption = self.transformer.transform(text)
+                break
+
+        logger.info(
+            f"Copying media group from {source_name} "
+            f"({len(messages)} items, IDs: {[m.id for m in messages]})"
+        )
+
+        await self._send_media_group(messages, caption)
 
     async def _send_to_target(
         self,
@@ -182,6 +235,49 @@ class ChannelDuplicator:
         filename_lower = filename.lower()
         return any(filename_lower.endswith(ext.lower()) for ext in skip_extensions)
 
+    async def _send_media_group(
+        self,
+        messages: list[Message],
+        caption: Optional[str],
+    ) -> None:
+        """Send a media group (album) to target channel."""
+        try:
+            # Collect all media files
+            files = []
+            for msg in messages:
+                if isinstance(msg.media, MessageMediaPhoto):
+                    # Use photo directly to preserve type
+                    files.append(msg.photo)
+                elif isinstance(msg.media, MessageMediaDocument):
+                    # Check if should skip this file
+                    filename = self._get_document_filename(msg)
+                    if self._should_skip_file(filename):
+                        logger.info(f"Skipping file with excluded extension: {filename}")
+                        continue
+                    files.append(msg.document)
+
+            if not files:
+                # All files were skipped, just send caption if any
+                if caption:
+                    await self._send_text_message(caption)
+                return
+
+            # Send all files as an album
+            await self.client.send_file(
+                self._target_entity,
+                files,
+                caption=caption,
+            )
+            logger.info(f"Successfully copied media group ({len(files)} items)")
+
+        except FloodWaitError as e:
+            logger.warning(f"Rate limited. Waiting {e.seconds} seconds...")
+            await asyncio.sleep(e.seconds)
+            await self._send_media_group(messages, caption)
+
+        except Exception as e:
+            logger.error(f"Failed to send media group: {e}")
+
     async def _send_media_message(
         self,
         message: Message,
@@ -196,32 +292,43 @@ class ChannelDuplicator:
                 await self._send_text_message(caption)
             return
 
-        # Skip .rar and .zip files
+        # Skip files with excluded extensions
         filename = self._get_document_filename(message)
         if self._should_skip_file(filename):
             logger.info(f"Skipping file with excluded extension: {filename}")
             return
 
-        # Download and re-upload media
-        # This is more reliable than forwarding
-        file = await self.client.download_media(message, file=bytes)
-
-        if file:
+        # For photos, use the photo object directly to preserve type
+        if isinstance(media, MessageMediaPhoto):
             await self.client.send_file(
                 self._target_entity,
-                file,
+                message.photo,
                 caption=caption,
-                # Preserve voice/video note attributes if present
-                voice_note=getattr(message.media, "voice", False)
-                if hasattr(message.media, "voice")
+            )
+        elif isinstance(media, MessageMediaDocument):
+            # For documents, use the document object directly
+            await self.client.send_file(
+                self._target_entity,
+                message.document,
+                caption=caption,
+                voice_note=getattr(media, "voice", False)
+                if hasattr(media, "voice")
                 else False,
-                video_note=getattr(message.media, "round", False)
-                if hasattr(message.media, "round")
+                video_note=getattr(media, "round", False)
+                if hasattr(media, "round")
                 else False,
             )
-        elif caption:
-            # Media download failed, send text only
-            await self._send_text_message(caption)
+        else:
+            # For other media types, try downloading and sending
+            file = await self.client.download_media(message, file=bytes)
+            if file:
+                await self.client.send_file(
+                    self._target_entity,
+                    file,
+                    caption=caption,
+                )
+            elif caption:
+                await self._send_text_message(caption)
 
     async def run(self) -> None:
         """Run the duplicator until stopped."""

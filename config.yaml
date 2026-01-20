@@ -25,11 +25,11 @@ replacements:
     replace: "📣订阅{{my_channel_name}}频道 🌐↓"
 
   # Replace channel link / 替换频道链接
-  - pattern: "🔗@\\w+"
+  - pattern: "🔗\\s*@\\w+"
     replace: "🔗 {{my_username}}"
 
   # Replace contact info / 替换联系方式
-  - pattern: "投稿.*?[：:]\\s*@\\w+"
+  - pattern: ".*?投稿.*?[：:]\\s*@\\w+"
     replace: "投稿澄清爆料：{{my_contact_username}}"
 
   # You can add more replacements here / 可以在这里添加更多替换规则
