@@ -32,6 +32,14 @@ replacements:
   - pattern: ".*?投稿.*?[：:]\\s*@\\w+"
     replace: "投稿澄清爆料：{{my_contact_username}}"
 
+  # Replace customer service contact / 替换客服联系方式
+  - pattern: "客服.*?@\\w+"
+    replace: "客服：{{my_contact_username}}"
+
+  # Replace any remaining @username at end of message / 替换消息末尾的@用户名
+  - pattern: "✈️+\\s*@\\w+"
+    replace: "✈️ {{my_contact_username}}"
+
   # You can add more replacements here / 可以在这里添加更多替换规则
   # - pattern: "原始文字"
   #   replace: "替换文字"
