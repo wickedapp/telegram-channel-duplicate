@@ -106,18 +106,26 @@ class ChannelDuplicator:
         """Process an incoming message."""
         source_name = self._source_entities.get(message.chat_id, "Unknown")
 
-        # Apply filters
-        should_copy, reason = self.filter.should_copy(message)
-
-        if not should_copy:
-            logger.debug(f"Skipping message from {source_name}: {reason}")
-            return
-
-        # Check if this is part of a media group (album)
+        # Log raw message details for debugging
+        text = message.text or ""
+        caption = getattr(message, 'caption', None) or ""
         grouped_id = getattr(message, 'grouped_id', None)
+        has_media = message.media is not None
+        media_type = type(message.media).__name__ if message.media else "None"
+        is_forwarded = message.fwd_from is not None
+
+        logger.info(
+            f"[RAW MESSAGE] source={source_name} id={message.id} "
+            f"grouped_id={grouped_id} has_media={has_media} media_type={media_type} "
+            f"is_forwarded={is_forwarded} text_len={len(text)} caption_len={len(caption)}"
+        )
+        logger.info(f"[RAW MESSAGE] text={repr(text[:200])}{'...' if len(text) > 200 else ''}")
+        if caption:
+            logger.info(f"[RAW MESSAGE] caption={repr(caption[:200])}{'...' if len(caption) > 200 else ''}")
 
         if grouped_id:
-            # Add to media group collection
+            # For media groups, collect all messages first, then filter
+            # (caption may only be on one message in the group)
             self._media_groups[grouped_id].append(message)
 
             # Cancel existing task for this group if any
@@ -128,6 +136,14 @@ class ChannelDuplicator:
             self._media_group_tasks[grouped_id] = asyncio.create_task(
                 self._process_media_group_delayed(grouped_id, source_name)
             )
+            return
+
+        # For non-media-group messages, apply filters here
+        should_copy, reason = self.filter.should_copy(message)
+        logger.info(f"[FILTER] msg_id={message.id} should_copy={should_copy} reason='{reason}'")
+
+        if not should_copy:
+            logger.info(f"Skipping message from {source_name}: {reason}")
             return
 
         # Transform text
@@ -155,20 +171,49 @@ class ChannelDuplicator:
         # Sort by message ID to maintain order
         messages.sort(key=lambda m: m.id)
 
+        # Log media group details
+        logger.info(
+            f"[MEDIA GROUP] grouped_id={grouped_id} count={len(messages)} "
+            f"message_ids={[m.id for m in messages]}"
+        )
+        for msg in messages:
+            msg_text = msg.text or ""
+            msg_caption = getattr(msg, 'caption', None) or ""
+            logger.info(
+                f"[MEDIA GROUP] msg_id={msg.id} text_len={len(msg_text)} "
+                f"caption_len={len(msg_caption)} media_type={type(msg.media).__name__ if msg.media else 'None'}"
+            )
+
         # Get caption from the first message that has one
-        caption = None
+        caption_text = None
+        caption_msg = None
         for msg in messages:
             text = msg.text or getattr(msg, 'caption', None)
             if text:
-                caption = self.transformer.transform(text)
+                caption_text = text
+                caption_msg = msg
+                logger.info(f"[MEDIA GROUP] found caption in msg_id={msg.id}: {repr(text[:200])}{'...' if len(text) > 200 else ''}")
                 break
+
+        # Apply filters using the message with caption (or first message if no caption)
+        filter_msg = caption_msg if caption_msg else messages[0]
+        should_copy, reason = self.filter.should_copy(filter_msg)
+
+        logger.info(f"[MEDIA GROUP] filter result: should_copy={should_copy} reason='{reason}'")
+
+        if not should_copy:
+            logger.info(f"Skipping media group from {source_name}: {reason}")
+            return
+
+        # Transform the caption
+        transformed_caption = self.transformer.transform(caption_text) if caption_text else None
 
         logger.info(
             f"Copying media group from {source_name} "
             f"({len(messages)} items, IDs: {[m.id for m in messages]})"
         )
 
-        await self._send_media_group(messages, caption)
+        await self._send_media_group(messages, transformed_caption)
 
     async def _send_to_target(
         self,
