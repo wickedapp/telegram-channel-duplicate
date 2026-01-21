@@ -26,6 +26,24 @@ class MessageFilter:
         """Check if message is forwarded."""
         return message.fwd_from is not None
 
+    def matches_required_keyword(self, text: str) -> bool:
+        """
+        Check if text contains at least one required keyword.
+        Returns True if a required keyword is found, or if no required keywords are configured.
+        """
+        required = self.config.require_keywords
+        if not required:
+            # No required keywords configured, allow all
+            return True
+
+        if not text:
+            return False
+
+        for keyword in required:
+            if keyword in text:
+                return True
+        return False
+
     def matches_negative_keyword(self, text: str) -> Optional[str]:
         """
         Check if text contains any negative keyword.
@@ -86,7 +104,11 @@ class MessageFilter:
         if self.config.ignore_forwarded and self.is_forwarded(message):
             return False, "Message is forwarded"
 
-        # Check negative keywords
+        # Check required keywords (whitelist) - must contain at least one
+        if not self.matches_required_keyword(text):
+            return False, "Missing required keyword"
+
+        # Check negative keywords (blacklist)
         matched_keyword = self.matches_negative_keyword(text)
         if matched_keyword:
             return False, f"Matched negative keyword: '{matched_keyword}'"

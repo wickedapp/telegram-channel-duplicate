@@ -77,6 +77,11 @@ message_filters:
     - ".rar"
     - ".zip"
 
+  # Required keywords - ONLY copy messages containing at least one of these
+  # 必须包含的关键词 - 只复制包含这些关键词的消息 (留空则复制所有消息)
+  require_keywords:
+    - "订阅东南亚大事件频道"
+
 # Logging level: DEBUG, INFO, WARNING, ERROR
 # 日志级别
 log_level: INFO

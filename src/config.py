@@ -123,6 +123,12 @@ class Config:
         filters = self._config.get("message_filters", {})
         return filters.get("skip_file_extensions", [])
 
+    @property
+    def require_keywords(self) -> list[str]:
+        """Required keywords - only copy messages containing these."""
+        filters = self._config.get("message_filters", {})
+        return filters.get("require_keywords", [])
+
     def get_template_vars(self) -> dict[str, str]:
         """Get template variables for text replacement."""
         return {
