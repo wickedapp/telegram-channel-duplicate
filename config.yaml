@@ -29,7 +29,7 @@ replacements:
     replace: "🔗 {{my_username}}"
 
   # Replace contact info / 替换联系方式
-  - pattern: ".*?投稿.*?[：:]\\s*@\\w+"
+  - pattern: "[^\\n]*投稿[^\\n：:]*[：:]\\s*@\\w+"
     replace: "投稿澄清爆料：{{my_contact_username}}"
 
   # Replace customer service contact / 替换客服联系方式
@@ -88,7 +88,6 @@ message_filters:
   # Required keywords - ONLY copy messages containing at least one of these
   # 必须包含的关键词 - 只复制包含这些关键词的消息 (留空则复制所有消息)
   require_keywords:
-    - "订阅东南亚大事件频道"
 
 # Logging level: DEBUG, INFO, WARNING, ERROR
 # 日志级别
