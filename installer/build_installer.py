@@ -11,7 +11,7 @@ Usage:
     python installer/build_installer.py
 
 Requirements:
-    - PyArmor 8.x: pip install pyarmor
+    - PyArmor 9.x: pip install pyarmor
     - PyInstaller: pip install pyinstaller
 """
 
@@ -127,15 +127,15 @@ def check_prerequisites() -> bool:
     # Check Python version
     print_info(f"Python version: {sys.version}")
 
-    # Check PyArmor
+    # Check PyArmor (PyArmor 9.x uses 'pyarmor' command directly)
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "pyarmor", "--version"],
+            ["pyarmor", "--version"],
             capture_output=True,
             text=True,
         )
         if result.returncode == 0:
-            version = result.stdout.strip() or result.stderr.strip()
+            version = result.stdout.strip().split('\n')[0] or result.stderr.strip().split('\n')[0]
             print_info(f"PyArmor: {version}")
         else:
             print_error("PyArmor not found. Install with: pip install pyarmor")
@@ -188,9 +188,9 @@ def run_pyarmor_obfuscation() -> bool:
     """Run PyArmor to obfuscate the source code."""
     print_step(2, "Obfuscating source code with PyArmor")
 
-    # PyArmor 8.x command
+    # PyArmor 9.x command (uses 'pyarmor' directly)
     cmd = [
-        sys.executable, "-m", "pyarmor",
+        "pyarmor",
         "gen",
         "--output", str(DIST_OBFUSCATED),
         str(SRC_DIR),
