@@ -119,13 +119,7 @@ class SetupWizard:
             label.pack(side=tk.LEFT, expand=True)
             self.step_labels.append(label)
 
-        # Content frame (will hold step frames)
-        self.content_frame = tk.Frame(
-            self.root, bg=self.BG_COLOR, padx=self.PADDING, pady=self.PADDING
-        )
-        self.content_frame.pack(fill=tk.BOTH, expand=True)
-
-        # Navigation frame at bottom
+        # Navigation frame at bottom (pack FIRST so it gets space before content expands)
         self.nav_frame = tk.Frame(self.root, bg=self.BG_COLOR, pady=15)
         self.nav_frame.pack(fill=tk.X, side=tk.BOTTOM)
 
@@ -144,6 +138,12 @@ class SetupWizard:
             command=self._go_next,
         )
         self.next_button.pack(side=tk.RIGHT, padx=self.PADDING)
+
+        # Content frame (will hold step frames) - pack AFTER nav_frame
+        self.content_frame = tk.Frame(
+            self.root, bg=self.BG_COLOR, padx=self.PADDING, pady=self.PADDING
+        )
+        self.content_frame.pack(fill=tk.BOTH, expand=True)
 
     def _create_steps(self) -> None:
         """Create all step frames."""
