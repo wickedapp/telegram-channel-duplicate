@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import sys
 from typing import Optional, Union
 from collections import defaultdict
 
@@ -17,6 +18,30 @@ from .filters import MessageFilter
 from .transformer import TextTransformer
 
 logger = logging.getLogger(__name__)
+
+
+def is_gui_mode() -> bool:
+    """Check if running in GUI mode (no console)."""
+    return getattr(sys, 'frozen', False) or not sys.stdin or not sys.stdin.isatty()
+
+
+def gui_input(prompt: str, title: str = "输入") -> str:
+    """Show a GUI dialog for input when running in GUI mode."""
+    import tkinter as tk
+    from tkinter import simpledialog
+
+    # Create a hidden root window
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
+
+    # Show input dialog
+    result = simpledialog.askstring(title, prompt, parent=root)
+    root.destroy()
+
+    if result is None:
+        raise ValueError("用户取消了输入")
+    return result
 
 # Time to wait for collecting media group messages (seconds)
 MEDIA_GROUP_WAIT_TIME = 1.0
@@ -48,15 +73,32 @@ class ChannelDuplicator:
         """Start the duplicator client and register handlers."""
         logger.info("Starting Telegram client...")
 
-        # Use lambda for interactive phone input if not set in .env
-        phone = self.config.phone_number
-        if phone:
-            await self.client.start(phone=phone)
-        else:
-            # Prompt for phone number interactively
-            await self.client.start(
-                phone=lambda: input("请输入手机号码 (Please enter phone number, e.g. +8613812345678): ")
-            )
+        # Determine input method based on environment
+        gui_mode = is_gui_mode()
+
+        def get_phone():
+            if self.config.phone_number:
+                return self.config.phone_number
+            if gui_mode:
+                return gui_input("请输入手机号码 (例如: +8613812345678):", "Telegram 验证")
+            return input("请输入手机号码 (Please enter phone number, e.g. +8613812345678): ")
+
+        def get_code():
+            if gui_mode:
+                return gui_input("请输入 Telegram 发送的验证码:", "Telegram 验证码")
+            return input("请输入验证码 (Please enter the code): ")
+
+        def get_password():
+            if gui_mode:
+                return gui_input("请输入两步验证密码:", "两步验证")
+            return input("请输入两步验证密码 (Please enter 2FA password): ")
+
+        # Start client with appropriate callbacks
+        await self.client.start(
+            phone=get_phone,
+            code_callback=get_code,
+            password=get_password,
+        )
 
         # Verify we're logged in
         me = await self.client.get_me()
