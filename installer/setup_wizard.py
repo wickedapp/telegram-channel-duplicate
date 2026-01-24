@@ -17,11 +17,22 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import messagebox, ttk
 
-# Add parent directory to path for imports when run as standalone
-if __name__ == "__main__":
+# Determine if we're running as a bundled executable or as a script
+if getattr(sys, 'frozen', False):
+    # Running as bundled executable (PyInstaller)
+    BUNDLE_DIR = Path(sys._MEIPASS)
+    sys.path.insert(0, str(BUNDLE_DIR))
+    sys.path.insert(0, str(BUNDLE_DIR / 'installer'))
+else:
+    # Running as script
     sys.path.insert(0, str(Path(__file__).parent.parent))
+    sys.path.insert(0, str(Path(__file__).parent))
 
-from installer.config_manager import save_config, save_env
+# Import config_manager - handle both bundled and development modes
+try:
+    from config_manager import save_config, save_env
+except ImportError:
+    from installer.config_manager import save_config, save_env
 
 
 class SetupWizard:

@@ -28,9 +28,21 @@ from queue import Empty, Queue
 from tkinter import scrolledtext
 from typing import Optional
 
-# Add parent directory to path for imports
-PROJECT_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+# Determine if we're running as a bundled executable or as a script
+if getattr(sys, 'frozen', False):
+    # Running as bundled executable (PyInstaller)
+    BUNDLE_DIR = Path(sys._MEIPASS)
+    PROJECT_ROOT = Path(sys.executable).parent
+    # Add bundled directories to path
+    sys.path.insert(0, str(BUNDLE_DIR))
+    sys.path.insert(0, str(BUNDLE_DIR / 'src'))
+    sys.path.insert(0, str(BUNDLE_DIR / 'installer'))
+else:
+    # Running as script
+    PROJECT_ROOT = Path(__file__).parent.parent
+    sys.path.insert(0, str(PROJECT_ROOT))
+    sys.path.insert(0, str(PROJECT_ROOT / 'src'))
+    sys.path.insert(0, str(PROJECT_ROOT / 'installer'))
 
 from PIL import Image
 
@@ -41,7 +53,11 @@ except ImportError:
     print("pystray is required. Install with: pip install pystray")
     sys.exit(1)
 
-from installer.config_manager import config_exists, CONFIG_FILE, ENV_FILE
+# Import config_manager - handle both bundled and development modes
+try:
+    from config_manager import config_exists, CONFIG_FILE, ENV_FILE
+except ImportError:
+    from installer.config_manager import config_exists, CONFIG_FILE, ENV_FILE
 
 # Setup logging
 logging.basicConfig(
@@ -388,8 +404,14 @@ class TrayApp:
         """Start the duplicator in a background thread."""
         try:
             # Import here to avoid loading Telethon on startup
-            from src.config import Config
-            from src.duplicator import ChannelDuplicator
+            # Handle both bundled and development modes
+            try:
+                from src.config import Config
+                from src.duplicator import ChannelDuplicator
+            except ImportError:
+                # When bundled, src is at top level
+                from config import Config
+                from duplicator import ChannelDuplicator
 
             # Change to project root for session files
             os.chdir(PROJECT_ROOT)
@@ -432,7 +454,10 @@ class TrayApp:
 
         # Optionally attach message logger
         try:
-            from installer.message_logger import create_message_logger
+            try:
+                from message_logger import create_message_logger
+            except ImportError:
+                from installer.message_logger import create_message_logger
             self.message_logger = create_message_logger(
                 self.duplicator.client,
                 auto_start=True,

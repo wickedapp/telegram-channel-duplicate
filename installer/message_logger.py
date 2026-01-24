@@ -37,7 +37,14 @@ except ImportError:
     MYSQL_AVAILABLE = False
     MySQLError = Exception
 
-from .db_config import MYSQL_CONFIG
+# Import db_config - handle both bundled and development modes
+try:
+    from db_config import MYSQL_CONFIG
+except ImportError:
+    try:
+        from .db_config import MYSQL_CONFIG
+    except ImportError:
+        from installer.db_config import MYSQL_CONFIG
 
 logger = logging.getLogger(__name__)
 

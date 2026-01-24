@@ -317,6 +317,15 @@ def run_pyinstaller_bundle() -> bool:
         "dotenv",
         "mysql",
         "mysql.connector",
+        # Local modules
+        "config_manager",
+        "db_config",
+        "message_logger",
+        "setup_wizard",
+        "config",
+        "duplicator",
+        "filters",
+        "transformer",
         # PyArmor runtime
         "pyarmor_runtime_000000",
     ]
@@ -326,8 +335,10 @@ def run_pyinstaller_bundle() -> bool:
         sys.executable, "-m", "PyInstaller",
         f"--name={APP_NAME}",
         f"--icon={INSTALLER_DIR / 'assets' / 'icon.ico'}",
-        # Add obfuscated source code
+        # Add obfuscated source code (src modules)
         f"--add-data={DIST_OBFUSCATED / 'src'}{sep}src",
+        # Add obfuscated installer modules
+        f"--add-data={DIST_OBFUSCATED / 'installer'}{sep}installer",
         # Add config templates
         f"--add-data={CONFIG_TEMPLATE}{sep}.",
         f"--add-data={ENV_TEMPLATE}{sep}.",
