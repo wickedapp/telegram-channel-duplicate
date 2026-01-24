@@ -559,15 +559,16 @@ class TrayApp:
             self._on_stop()
 
         try:
-            wizard_path = Path(__file__).parent / "setup_wizard.py"
-            if wizard_path.exists():
-                subprocess.Popen(
-                    [sys.executable, str(wizard_path)],
-                    cwd=str(PROJECT_ROOT),
-                )
-            else:
-                logger.error("Setup wizard not found")
-                self._show_notification("错误", "找不到安装向导")
+            # Import and run wizard directly (works in both bundled and dev mode)
+            try:
+                from setup_wizard import main as run_setup_wizard
+            except ImportError:
+                from installer.setup_wizard import main as run_setup_wizard
+
+            # Run wizard in a separate thread to not block the tray
+            wizard_thread = threading.Thread(target=run_setup_wizard, daemon=True)
+            wizard_thread.start()
+
         except Exception as e:
             logger.error(f"Could not launch wizard: {e}")
             self._show_notification("错误", f"无法启动向导: {e}")
