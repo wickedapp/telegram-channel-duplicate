@@ -48,3 +48,6 @@ logs/
 Thumbs.db
 .rustdesk_*
 installer/db_config.py
+dist_obfuscated/
+*.spec
+telegram-installer-source.zip
