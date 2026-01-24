@@ -39,8 +39,8 @@ class SetupWizard:
     """4-step setup wizard for Telegram Channel Duplicator configuration."""
 
     # UI Constants
-    WINDOW_WIDTH = 600
-    WINDOW_HEIGHT = 500
+    WINDOW_WIDTH = 700
+    WINDOW_HEIGHT = 650
     PADDING = 20
     BUTTON_WIDTH = 12
 
@@ -77,7 +77,8 @@ class SetupWizard:
         """Configure the main window."""
         self.root.title("Telegram 频道复制器 - 安装向导")
         self.root.geometry(f"{self.WINDOW_WIDTH}x{self.WINDOW_HEIGHT}")
-        self.root.resizable(False, False)
+        self.root.resizable(True, True)
+        self.root.minsize(600, 500)  # Minimum size
         self.root.configure(bg=self.BG_COLOR)
 
         # Center window on screen
