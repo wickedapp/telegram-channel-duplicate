@@ -1,0 +1,95 @@
+# Telegram Channel Duplicator Configuration
+# Telegram 频道复制器配置
+
+# Target channel to post messages to
+# 目标频道 - 消息将发送到这个频道
+target_channel: "@your_target_channel"
+
+# Your channel/user info for text replacements
+# 你的频道/用户信息 - 用于文字替换
+my_channel_name: "你的频道名称"
+my_username: "@your_channel_username"
+my_contact_username: "@your_contact_username"
+
+# Source channels to monitor
+# 来源频道 - 监控这些频道的新消息
+source_channels:
+  - "@source_channel_1"
+  # - "@source_channel_2"
+
+# Text replacements (applied in order)
+# 文字替换规则 (按顺序执行)
+# 使用正则表达式。变量: {{my_channel_name}}, {{my_username}}, {{my_contact_username}}
+replacements:
+  # Replace channel subscription text / 替换订阅文字
+  - pattern: "📣订阅.*?频道.*?↓"
+    replace: "📣订阅{{my_channel_name}}频道 🌐↓"
+
+  # Replace channel link / 替换频道链接
+  - pattern: "🔗\\s*@\\w+"
+    replace: "🔗 {{my_username}}"
+
+  # Replace contact info / 替换联系方式
+  - pattern: "[^\\n]*投稿[^\\n：:]*[：:]\\s*@\\w+"
+    replace: "投稿澄清爆料：{{my_contact_username}}"
+
+  # Replace customer service contact / 替换客服联系方式
+  - pattern: "客服.*?@\\w+"
+    replace: "客服：{{my_contact_username}}"
+
+  # Replace any remaining @username at end of message / 替换消息末尾的@用户名
+  - pattern: "✈️+\\s*@\\w+"
+    replace: "✈️ {{my_contact_username}}"
+
+  # You can add more replacements here / 可以在这里添加更多替换规则
+  # - pattern: "原始文字"
+  #   replace: "替换文字"
+
+# Negative filters - messages matching these will be IGNORED
+# 负面过滤器 - 匹配这些规则的消息将被忽略
+negative_filters:
+  # Keyword blocklist (case-insensitive substring match)
+  # 关键词黑名单 (不区分大小写)
+  keywords:
+    - "广告"
+    - "推广"
+    - "招代理"
+    - "招商"
+    - "免费领"
+    - "日入过万"
+
+  # Regex patterns for more complex filtering
+  # 正则表达式过滤 (更复杂的过滤规则)
+  patterns:
+    - "赚钱.*?日入"
+    - "免费.*?红包"
+    - "点击.*?链接.*?领取"
+
+# Message filter settings
+# 消息过滤设置
+message_filters:
+  # Ignore forwarded messages (only copy original posts)
+  # 忽略转发的消息 (只复制原创帖子)
+  ignore_forwarded: true
+
+  # Minimum message length (0 = no minimum)
+  # 最小消息长度 (0 = 无限制)
+  min_length: 0
+
+  # Maximum message length (0 = no limit)
+  # 最大消息长度 (0 = 无限制)
+  max_length: 0
+
+  # File extensions to skip (won't copy these files)
+  # 跳过的文件扩展名 (不复制这些文件)
+  skip_file_extensions:
+    - ".rar"
+    - ".zip"
+
+  # Required keywords - ONLY copy messages containing at least one of these
+  # 必须包含的关键词 - 只复制包含这些关键词的消息 (留空则复制所有消息)
+  require_keywords:
+
+# Logging level: DEBUG, INFO, WARNING, ERROR
+# 日志级别
+log_level: INFO
