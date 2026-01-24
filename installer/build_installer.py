@@ -268,6 +268,59 @@ def run_pyinstaller_bundle() -> bool:
 
     sep = get_path_separator()
 
+    # Hidden imports required because PyArmor obfuscation hides them from PyInstaller
+    hidden_imports = [
+        # Standard library
+        "asyncio",
+        "asyncio.base_events",
+        "asyncio.events",
+        "asyncio.futures",
+        "asyncio.locks",
+        "asyncio.protocols",
+        "asyncio.queues",
+        "asyncio.runners",
+        "asyncio.streams",
+        "asyncio.tasks",
+        "asyncio.transports",
+        "asyncio.windows_events",
+        "asyncio.windows_utils",
+        "concurrent.futures",
+        "threading",
+        "queue",
+        "logging",
+        "logging.handlers",
+        "json",
+        "re",
+        "pathlib",
+        "webbrowser",
+        "subprocess",
+        "signal",
+        "tkinter",
+        "tkinter.ttk",
+        "tkinter.messagebox",
+        "tkinter.scrolledtext",
+        # Third-party packages
+        "telethon",
+        "telethon.client",
+        "telethon.events",
+        "telethon.tl",
+        "telethon.tl.types",
+        "telethon.errors",
+        "telethon.sessions",
+        "pystray",
+        "pystray._base",
+        "pystray._win32",
+        "PIL",
+        "PIL.Image",
+        "PIL.ImageDraw",
+        "yaml",
+        "dotenv",
+        "mysql",
+        "mysql.connector",
+        # PyArmor runtime
+        "pyarmor_runtime_000000",
+    ]
+
     # Build the PyInstaller command
     cmd = [
         sys.executable, "-m", "PyInstaller",
@@ -280,15 +333,33 @@ def run_pyinstaller_bundle() -> bool:
         f"--add-data={ENV_TEMPLATE}{sep}.",
         # Add assets
         f"--add-data={ASSETS_DIR}{sep}assets",
+        # Add PyArmor runtime
+        f"--add-data={DIST_OBFUSCATED / 'pyarmor_runtime_000000'}{sep}pyarmor_runtime_000000",
         # No console window (GUI app)
         "--noconsole",
         # Clean build
         "--clean",
         # Confirm yes to overwrite
         "-y",
-        # Entry point (obfuscated tray_app.py)
-        str(DIST_OBFUSCATED / "installer" / "tray_app.py"),
     ]
+
+    # Add all hidden imports
+    for module in hidden_imports:
+        cmd.append(f"--hidden-import={module}")
+
+    # Collect all submodules for these packages
+    collect_all_packages = [
+        "telethon",
+        "pystray",
+        "PIL",
+        "yaml",
+        "dotenv",
+    ]
+    for pkg in collect_all_packages:
+        cmd.append(f"--collect-all={pkg}")
+
+    # Entry point (obfuscated tray_app.py)
+    cmd.append(str(DIST_OBFUSCATED / "installer" / "tray_app.py"))
 
     print_info(f"Path separator for this platform: '{sep}'")
 
