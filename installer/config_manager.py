@@ -5,13 +5,22 @@ Handles reading and writing configuration files (.env and config.yaml)
 for the Windows setup wizard.
 """
 
+import sys
 from pathlib import Path
 
 import yaml
 
 
-# Get the project root directory (parent of installer/)
-PROJECT_ROOT = Path(__file__).parent.parent
+# Get the project root directory
+# When bundled with PyInstaller, use the directory where the .exe is located
+# When running as script, use the parent of installer/
+if getattr(sys, 'frozen', False):
+    # Running as bundled executable
+    PROJECT_ROOT = Path(sys.executable).parent
+else:
+    # Running as script
+    PROJECT_ROOT = Path(__file__).parent.parent
+
 ENV_FILE = PROJECT_ROOT / ".env"
 CONFIG_FILE = PROJECT_ROOT / "config.yaml"
 

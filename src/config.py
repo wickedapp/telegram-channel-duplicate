@@ -1,4 +1,5 @@
 import os
+import sys
 import re
 import logging
 from pathlib import Path
@@ -8,12 +9,26 @@ import yaml
 from dotenv import load_dotenv
 
 
+def get_app_directory() -> Path:
+    """Get the application directory (where config files should be)."""
+    if getattr(sys, 'frozen', False):
+        # Running as bundled executable - use exe's directory
+        return Path(sys.executable).parent
+    else:
+        # Running as script - use current directory
+        return Path.cwd()
+
+
 class Config:
     """Configuration loader for Telegram Channel Duplicator."""
 
     def __init__(self, config_path: str = "config.yaml"):
-        # Load environment variables
-        load_dotenv()
+        # Get the application directory for config files
+        app_dir = get_app_directory()
+
+        # Load environment variables from app directory
+        env_file = app_dir / ".env"
+        load_dotenv(env_file)
 
         self.api_id = os.getenv("API_ID")
         self.api_hash = os.getenv("API_HASH")
@@ -27,10 +42,10 @@ class Config:
 
         self.api_id = int(self.api_id)
 
-        # Load YAML config
-        config_file = Path(config_path)
+        # Load YAML config from app directory
+        config_file = app_dir / config_path
         if not config_file.exists():
-            raise FileNotFoundError(f"Config file not found: {config_path}")
+            raise FileNotFoundError(f"Config file not found: {config_file}")
 
         with open(config_file, "r", encoding="utf-8") as f:
             self._config = yaml.safe_load(f)
