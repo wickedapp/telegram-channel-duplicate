@@ -101,7 +101,7 @@ def run_command(cmd: list[str], description: str, cwd: Path = None) -> bool:
 
 def clean_previous_builds() -> None:
     """Remove previous build artifacts."""
-    print_step(1, "Cleaning previous builds")
+    print_step(2, "Cleaning previous builds")
 
     dirs_to_clean = [DIST_OBFUSCATED, DIST_DIR, BUILD_DIR]
 
@@ -120,14 +120,53 @@ def clean_previous_builds() -> None:
     print_success("Cleanup complete")
 
 
+def install_package(package: str) -> bool:
+    """Install a Python package using pip."""
+    print_info(f"Installing {package}...")
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", package],
+            capture_output=False,
+            check=True,
+        )
+        return True
+    except subprocess.CalledProcessError:
+        print_error(f"Failed to install {package}")
+        return False
+
+
+def install_requirements() -> bool:
+    """Install all requirements from requirements.txt."""
+    print_step(0, "Installing dependencies")
+
+    requirements_file = PROJECT_ROOT / "requirements.txt"
+    if not requirements_file.exists():
+        print_error("requirements.txt not found")
+        return False
+
+    print_info("Installing packages from requirements.txt...")
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-r", str(requirements_file)],
+            capture_output=False,
+            check=True,
+        )
+        print_success("All dependencies installed")
+        return True
+    except subprocess.CalledProcessError:
+        print_error("Failed to install dependencies from requirements.txt")
+        return False
+
+
 def check_prerequisites() -> bool:
-    """Check that required tools are installed."""
-    print_step(0, "Checking prerequisites")
+    """Check that required tools are installed, install if missing."""
+    print_step(1, "Checking prerequisites")
 
     # Check Python version
     print_info(f"Python version: {sys.version}")
 
     # Check PyArmor (PyArmor 9.x uses 'pyarmor' command directly)
+    pyarmor_ok = False
     try:
         result = subprocess.run(
             ["pyarmor", "--version"],
@@ -137,14 +176,18 @@ def check_prerequisites() -> bool:
         if result.returncode == 0:
             version = result.stdout.strip().split('\n')[0] or result.stderr.strip().split('\n')[0]
             print_info(f"PyArmor: {version}")
-        else:
-            print_error("PyArmor not found. Install with: pip install pyarmor")
-            return False
+            pyarmor_ok = True
     except FileNotFoundError:
-        print_error("PyArmor not found. Install with: pip install pyarmor")
-        return False
+        pass
+
+    if not pyarmor_ok:
+        print_info("PyArmor not found, installing...")
+        if not install_package("pyarmor"):
+            return False
+        print_success("PyArmor installed")
 
     # Check PyInstaller
+    pyinstaller_ok = False
     try:
         result = subprocess.run(
             [sys.executable, "-m", "PyInstaller", "--version"],
@@ -153,12 +196,15 @@ def check_prerequisites() -> bool:
         )
         if result.returncode == 0:
             print_info(f"PyInstaller: {result.stdout.strip()}")
-        else:
-            print_error("PyInstaller not found. Install with: pip install pyinstaller")
-            return False
+            pyinstaller_ok = True
     except FileNotFoundError:
-        print_error("PyInstaller not found. Install with: pip install pyinstaller")
-        return False
+        pass
+
+    if not pyinstaller_ok:
+        print_info("PyInstaller not found, installing...")
+        if not install_package("pyinstaller"):
+            return False
+        print_success("PyInstaller installed")
 
     # Check required files exist
     required_files = [
@@ -186,7 +232,7 @@ def check_prerequisites() -> bool:
 
 def run_pyarmor_obfuscation() -> bool:
     """Run PyArmor to obfuscate the source code."""
-    print_step(2, "Obfuscating source code with PyArmor")
+    print_step(3, "Obfuscating source code with PyArmor")
 
     # PyArmor 9.x command (uses 'pyarmor' directly)
     cmd = [
@@ -218,7 +264,7 @@ def run_pyarmor_obfuscation() -> bool:
 
 def run_pyinstaller_bundle() -> bool:
     """Run PyInstaller to create the executable bundle."""
-    print_step(3, "Bundling with PyInstaller")
+    print_step(4, "Bundling with PyInstaller")
 
     sep = get_path_separator()
 
@@ -319,9 +365,14 @@ Project Root: {PROJECT_ROOT}
     os.chdir(PROJECT_ROOT)
     print_info(f"Working directory: {os.getcwd()}")
 
-    # Check prerequisites
+    # Install dependencies from requirements.txt
+    if not install_requirements():
+        print_error("Failed to install dependencies.")
+        return 1
+
+    # Check prerequisites (and install build tools if missing)
     if not check_prerequisites():
-        print_error("Prerequisites check failed. Please install missing dependencies.")
+        print_error("Prerequisites check failed.")
         return 1
 
     # Clean previous builds
