@@ -51,3 +51,4 @@ installer/db_config.py
 dist_obfuscated/
 *.spec
 telegram-installer-source.zip
+windows_build_files.zip
