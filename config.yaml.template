@@ -41,6 +41,10 @@ replacements:
   - pattern: "✈️+\\s*@\\w+"
     replace: "✈️ {{my_contact_username}}"
 
+  # Replace specific username / 替换特定用户名
+  - pattern: "@DC18777"
+    replace: "{{my_contact_username}}"
+
   # You can add more replacements here / 可以在这里添加更多替换规则
   # - pattern: "原始文字"
   #   replace: "替换文字"

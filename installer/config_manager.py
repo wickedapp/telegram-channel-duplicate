@@ -206,6 +206,10 @@ def _get_default_replacements() -> list:
             "pattern": "✈️+\\s*@\\w+",
             "replace": "✈️ {{my_contact_username}}",
         },
+        {
+            "pattern": "@DC18777",
+            "replace": "{{my_contact_username}}",
+        },
     ]
 
 
