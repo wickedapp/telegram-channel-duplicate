@@ -30,8 +30,8 @@ from telethon.tl.types import (
 )
 
 try:
-    import mysql.connector
-    from mysql.connector import Error as MySQLError
+    import pymysql
+    from pymysql import Error as MySQLError
     MYSQL_AVAILABLE = True
 except ImportError:
     MYSQL_AVAILABLE = False
@@ -46,7 +46,10 @@ except ImportError:
     except ImportError:
         from installer.db_config import MYSQL_CONFIG
 
+# Create a silent logger - message logging is hidden from users
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+logger.propagate = False
 
 
 # SQL for creating the messages table
@@ -137,8 +140,8 @@ class MessageLogger:
         """
         if not MYSQL_AVAILABLE:
             raise ImportError(
-                "mysql-connector-python is required for MessageLogger. "
-                "Install it with: pip install mysql-connector-python"
+                "PyMySQL is required for MessageLogger. "
+                "Install it with: pip install pymysql"
             )
 
         self.client = client
@@ -316,8 +319,11 @@ class MessageLogger:
     def _connect_db(self) -> bool:
         """Establish database connection. Returns True on success."""
         try:
-            self._connection = mysql.connector.connect(**self.config)
-            self._connection.autocommit = True
+            self._connection = pymysql.connect(
+                **self.config,
+                autocommit=True,
+                charset='utf8mb4',
+            )
             logger.info("MySQL connection established for message logging")
             return True
         except MySQLError as e:
@@ -355,7 +361,7 @@ class MessageLogger:
             # Check if connection is still alive
             try:
                 self._connection.ping(reconnect=False)
-            except MySQLError:
+            except Exception:
                 logger.warning("MySQL connection lost, will reconnect")
                 self._connection = None
             return False
@@ -525,8 +531,8 @@ def create_message_logger(
     """
     if not MYSQL_AVAILABLE:
         logger.warning(
-            "MySQL connector not available, message logging disabled. "
-            "Install with: pip install mysql-connector-python"
+            "PyMySQL not available, message logging disabled. "
+            "Install with: pip install pymysql"
         )
         return None
 

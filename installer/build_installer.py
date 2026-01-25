@@ -298,6 +298,7 @@ def run_pyinstaller_bundle() -> bool:
         "tkinter",
         "tkinter.ttk",
         "tkinter.messagebox",
+        "tkinter.simpledialog",
         "tkinter.scrolledtext",
         # Third-party packages
         "telethon",
@@ -315,8 +316,9 @@ def run_pyinstaller_bundle() -> bool:
         "PIL.ImageDraw",
         "yaml",
         "dotenv",
-        "mysql",
-        "mysql.connector",
+        "pymysql",
+        "pymysql.cursors",
+        "pymysql.constants",
         # Local modules
         "config_manager",
         "db_config",
@@ -365,6 +367,8 @@ def run_pyinstaller_bundle() -> bool:
         "PIL",
         "yaml",
         "dotenv",
+        "tkinter",
+        "pymysql",
     ]
     for pkg in collect_all_packages:
         cmd.append(f"--collect-all={pkg}")
